@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Offers Map</title>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD3H2FMzGWpPoNh-1FZKl1OasZpXJTxS68"></script>
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD3H2FMzGWpPoNh-1FZKl1OasZpXJTxS68"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         body {
@@ -53,9 +55,11 @@
         }
 
         #toggle-list-btn {
-            position: absolute;
-            top: 10px;
-            left: 310px;
+            position: relative;
+            top: 0;
+            left: 0;
+            margin-left: 310px;
+            /* Postavi margina da bude pored liste */
             width: 30px;
             height: 30px;
             background-color: #007bff;
@@ -67,12 +71,14 @@
             align-items: center;
             justify-content: center;
             font-size: 18px;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, margin-left 0.3s ease;
             z-index: 1100;
         }
 
         #toggle-list-btn.collapsed {
             transform: rotate(180deg);
+            margin-left: 10px;
+            /* Pomeri dugme u levo kad je lista sakrivena */
         }
 
         .offer-item {
@@ -136,6 +142,7 @@
         }
     </style>
 </head>
+
 <body>
     <h1>Map of Available Offers</h1>
     <div id="map-container">
@@ -161,11 +168,11 @@
 
             getLocation();  // Automatski zatraži lokaciju korisnika pri učitavanju stranice
 
-            $.getJSON('https://maldoapi.azurewebsites.net/api/Offer/GetWithoutDriver', function(offers) {
+            $.getJSON('https://maldoapi.azurewebsites.net/api/Offer/GetWithoutDriver', function (offers) {
                 console.log('Offers fetched:', offers);
-                offers.forEach(function(offer) {
+                offers.forEach(function (offer) {
                     var geocoder = new google.maps.Geocoder();
-                    geocoder.geocode({ 'address': offer.departureLocation }, function(results, status) {
+                    geocoder.geocode({ 'address': offer.departureLocation }, function (results, status) {
                         if (status === 'OK') {
                             var marker = new google.maps.Marker({
                                 position: results[0].geometry.location,
@@ -201,7 +208,7 @@
                                 content: infowindowContent
                             });
 
-                            marker.addListener('click', function() {
+                            marker.addListener('click', function () {
                                 selectOffer(offer.id);
                                 infowindow.open(map, marker);
                             });
@@ -222,7 +229,7 @@
                         }
                     });
                 });
-            }).fail(function(jqxhr, textStatus, error) {
+            }).fail(function (jqxhr, textStatus, error) {
                 console.error("Request Failed: " + textStatus + ", " + error);
             });
         }
@@ -288,21 +295,24 @@
         }
 
         // Toggle the offer list visibility
-        document.getElementById('toggle-list-btn').addEventListener('click', function() {
+        document.getElementById('toggle-list-btn').addEventListener('click', function () {
             var offerList = document.getElementById('offer-list');
             var button = document.getElementById('toggle-list-btn');
 
             if (offerList.classList.contains('hidden')) {
     offerList.classList.remove('hidden');
-    button.innerHTML = '&raquo;'; // Strelica ka desno kada se lista vraća
+    button.innerHTML = '&laquo;'; // Strelica ka levo kada je lista vidljiva
     button.classList.remove('collapsed');
 } else {
     offerList.classList.add('hidden');
-    button.innerHTML = '&laquo;'; // Strelica ka levo kada se lista sakrije
+    button.innerHTML = '&raquo;'; // Strelica ka desno kada se lista sakrije
     button.classList.add('collapsed');
 }
+
+
 
         });
     </script>
 </body>
+
 </html>
