@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offers Map</title>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD3H2FMzGWpPoNh-1FZKl1OasZpXJTxS68"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f8fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            text-align: center;
+            color: #007bff;
+            margin-top: 20px;
+        }
+
+        #map-container {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+            width: 100%;
+        }
+
+        #map {
+            height: 100%;
+            width: 75%;
+        }
+
+        #offer-list {
+            width: 25%;
+            background-color: white;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .offer-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .offer-item:hover {
+            background-color: #f0f8ff;
+        }
+
+        .offer-item.selected {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .offer-item h4 {
+            margin: 0;
+            color: #007bff;
+        }
+
+        .offer-item.selected h4 {
+            color: white;
+        }
+
+        .infowindow-content {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .infowindow-content h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+
+        .infowindow-content p {
+            margin: 5px 0;
+        }
+
+        .infowindow-content button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .infowindow-content button:hover {
+            background-color: #0056b3;
+        }
+
+        #demo {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Map of Available Offers</h1>
+    <div id="map-container">
+        <div id="offer-list">
+            <div id="offers"></div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <p id="demo"></p>
+
+    <script>
+        var map;
+        var markers = {};
+        var infoWindows = {};
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 8,
+                center: { lat: 44.7866, lng: 20.4489 } // Centrirano na Beograd
+            });
+
+            getLocation();  // Automatski zatraži lokaciju korisnika pri učitavanju stranice
+
+            $.getJSON('https://maldoapi.azurewebsites.net/api/Offer/GetWithoutDriver', function(offers) {
+                console.log('Offers fetched:', offers);
+                offers.forEach(function(offer) {
+                    var geocoder = new google.maps.Geocoder();
+                    geocoder.geocode({ 'address': offer.departureLocation }, function(results, status) {
+                        if (status === 'OK') {
+                            var marker = new google.maps.Marker({
+                                position: results[0].geometry.location,
+                                map: map,
+                                title: offer.cargoName + " - " + offer.price + " RSD"
+                            });
+
+                            var infowindowContent = `
+                                <div class="infowindow-content">
+                                    <h3>${offer.cargoName}</h3>
+                                    <p><strong>Vrsta tereta:</strong> ${offer.cargoType}</p>
+                                    <p><strong>Težina:</strong> ${offer.cargoWeight} kg</p>
+                                    <p><strong>Dimenzije:</strong> ${offer.cargoDimensions}</p>
+                                    <p><strong>Datum polaska:</strong> ${offer.departureDate}</p>
+                                    <p><strong>Datum isporuke:</strong> ${offer.deliveryDate}</p>
+                                    <p><strong>Trajanje puta:</strong> ${offer.travelDuration} h</p>
+                                    <p><strong>Cena:</strong> ${offer.price} RSD</p>
+                                    <p><strong>Lokacija polaska:</strong> ${offer.departureLocation}</p>
+                                    <p><strong>Lokacija isporuke:</strong> ${offer.deliveryLocation}</p>
+                                    <p><strong>Dodatni opis:</strong> ${offer.additionalDescription}</p>
+                                    <p><strong>Distanca:</strong> ${offer.distance || 'N/A'} km</p>
+                                    <p><strong>Status:</strong> ${offer.status}</p>
+                                    <p><strong>Poslodavac:</strong> ${offer.employer?.name || 'N/A'}</p>
+                                    <p><strong>Korisničko ime:</strong> ${offer.employer?.username || 'N/A'}</p>
+                                    <p><strong>Email:</strong> ${offer.employer?.email || 'N/A'}</p>
+                                    <p><strong>Telefon:</strong> ${offer.employer?.phone || 'N/A'}</p>
+                                    <p><strong>Ocena:</strong> ${offer.employer?.rating || 'N/A'}</p>
+                                    <button onclick="sendRequest(${offer.id})">Pošalji zahtev za ponudu</button>
+                                </div>
+                            `;
+
+                            var infowindow = new google.maps.InfoWindow({
+                                content: infowindowContent
+                            });
+
+                            marker.addListener('click', function() {
+                                selectOffer(offer.id);
+                                infowindow.open(map, marker);
+                            });
+
+                            // Koristi ID ponude kao ključ za marker i infowindow
+                            markers[offer.id] = marker;
+                            infoWindows[offer.id] = infowindow;
+
+                            // Dodaj stavku u listu ponuda sa leve strane
+                            $('#offers').append(`
+                                <div class="offer-item" id="offer-${offer.id}" onclick="selectOffer(${offer.id})">
+                                    <h4>${offer.cargoName}</h4>
+                                    <p>${offer.price} RSD</p>
+                                </div>
+                            `);
+                        } else {
+                            console.log(`Geocode failed for offer ID ${offer.id} at ${offer.departureLocation} due to: ${status}`);
+                        }
+                    });
+                });
+            }).fail(function(jqxhr, textStatus, error) {
+                console.error("Request Failed: " + textStatus + ", " + error);
+            });
+        }
+
+        window.addEventListener('load', initMap);
+
+        function sendRequest(offerId) {
+            alert('Zahtev za ponudu ' + offerId + ' je poslat!');
+        }
+
+        function selectOffer(offerId) {
+            // Zatvori sve infowindowe
+            for (var id in infoWindows) {
+                infoWindows[id].close();
+            }
+
+            // Pomerite mapu na odabrani marker i otvorite njegov infowindow
+            map.panTo(markers[offerId].getPosition());
+            infoWindows[offerId].open(map, markers[offerId]);
+
+            // Ukloni selekciju sa svih stavki u listi
+            $('.offer-item').removeClass('selected');
+
+            // Dodaj selekciju na odabranu stavku
+            var selectedItem = $(`#offer-${offerId}`);
+            selectedItem.addClass('selected');
+
+            // Skroluj listu do selektovane stavke
+            selectedItem[0].scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }
+
+        // Geolocation functions
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showPosition);
+            } else {
+                document.getElementById("demo").innerHTML = "Geolocation is not supported by this browser.";
+            }
+        }
+
+        function showPosition(position) {
+            var lat = position.coords.latitude;
+            var lng = position.coords.longitude;
+            var userLocation = new google.maps.LatLng(lat, lng);
+
+            map.setCenter(userLocation);
+            map.setZoom(12);
+
+            // Dodavanje plavog kruga na korisnikovu lokaciju
+            new google.maps.Circle({
+                strokeColor: "#007bff",
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: "#007bff",
+                fillOpacity: 0.35,
+                map,
+                center: userLocation,
+                radius: 500, // radius in meters
+            });
+        }
+    </script>
+</body>
+</html>
